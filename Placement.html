@@ -160,11 +160,11 @@
 </head>
 <body>
 
-    <h1>🔀 사용자 정의 자리 배치 프로그램</h1>
+    <h1>사용자 정의 자리 배치 프로그램</h1>
 
     <div id="controls">
-        <button id="input-mode-button" onclick="toggleInputMode()">⚙️ 입력 모드 설정</button>
-        <button id="random-button" onclick="shuffleAllSeats()" disabled>🎲 전체 자리 랜덤 재배치</button>
+        <button id="input-mode-button" onclick="toggleInputMode()">입력 모드 설정</button>
+        <button id="random-button" onclick="shuffleAllSeats()" disabled>전체 자리 랜덤 재배치</button>
         <button id="swap-button" onclick="toggleSwapMode()" disabled>자리 교환 모드</button>
         <button id="reset-button" onclick="initializeSeating()">초기화 및 번호순 배치</button>
     </div>
@@ -226,7 +226,7 @@
             
             if (isVisible) {
                 inputContainer.style.display = 'none';
-                document.getElementById('input-mode-button').textContent = '⚙️ 입력 모드 설정';
+                document.getElementById('input-mode-button').textContent = '입력 모드 설정';
             } else {
                 inputContainer.style.display = 'flex';
                 document.getElementById('input-mode-button').textContent = '입력 모드 닫기';
@@ -504,4 +504,5 @@
     </script>
 
 </body>
+
 </html>
