@@ -3,12 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>학교 자리 배치 프로그램 (최종 완성본)</title>
+    <title>학교 자리 배치 프로그램 (교탁 추가본)</title>
     <style>
         body {
             font-family: 'Pretendard', sans-serif;
             display: flex; flex-direction: column; align-items: center;
             background-color: #f0f2f5; padding: 20px;
+        }
+        /* 교탁 스타일 */
+        #teacher-desk {
+            width: 120px; height: 50px;
+            background-color: #95a5a6; color: white;
+            display: flex; justify-content: center; align-items: center;
+            border-radius: 5px; font-weight: bold; margin-bottom: 20px;
+            border: 2px solid #7f8c8d; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         #seating-chart {
             display: grid;
@@ -17,21 +25,28 @@
             border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             visibility: hidden; 
         }
-        /* 일반형일 때는 8열, 모의고사형일 때는 9열로 동적 변경됨 */
-        .grid-normal { grid-template-columns: repeat(8, 65px); }
-        .grid-exam { grid-template-columns: repeat(9, 65px); }
+        .grid-normal { grid-template-columns: repeat(8, 85px); }
+        .grid-exam { grid-template-columns: repeat(9, 85px); }
 
         .seat {
-            width: 60px; height: 60px; display: flex;
+            width: 80px; height: 60px; display: flex;
             justify-content: center; align-items: center;
             border: 2px solid #34495e; border-radius: 10px;
-            font-weight: bold; font-size: 1.1em;
+            font-weight: bold; font-size: 0.95em;
             background-color: #ebf5ff; cursor: pointer; transition: 0.2s;
+            text-align: center;
         }
         .seat.empty {
-            background-color: #ffeef0; border: 2px dashed #ff8a9a;
-            color: #e74c3c; font-size: 0.8em; cursor: default;
+            background-color: #f8f9fa; border: 2px dashed #d1d8e0;
+            color: #a5b1be; font-size: 0.8em; cursor: default;
         }
+        /* 완료 시 통로 투명화 */
+        .finished .seat.empty {
+            background-color: transparent !important;
+            border: none !important;
+            color: transparent !important;
+        }
+        
         .seat.shuffling {
             animation: bounce 0.4s infinite;
             background-color: #fff9c4 !important;
@@ -44,15 +59,17 @@
             border-color: #f39c12; background-color: #fef5e7;
             box-shadow: 0 0 15px #f39c12; transform: scale(1.1); z-index: 10;
         }
-        #controls { display: flex; gap: 12px; margin-bottom: 25px; }
+        #controls { display: flex; gap: 12px; margin-bottom: 25px; flex-wrap: wrap; justify-content: center; }
         button {
-            padding: 12px 24px; font-size: 16px; font-weight: 600;
-            border-radius: 8px; border: none; cursor: pointer; color: white;
+            padding: 12px 20px; font-size: 15px; font-weight: 600;
+            border-radius: 8px; border: none; cursor: pointer; color: white; transition: 0.3s;
         }
         #input-mode-button { background-color: #8e44ad; }
         #random-button { background-color: #27ae60; }
         #swap-button { background-color: #2980b9; }
+        #complete-button { background-color: #2c3e50; }
         #reset-button { background-color: #c0392b; }
+        
         #input-container {
             background: white; padding: 25px; border-radius: 15px;
             display: none; flex-direction: column; gap: 15px;
@@ -62,7 +79,6 @@
             text-align: center; font-size: 0.9em; color: #7f8c8d; 
             padding: 15px 0 5px; border-bottom: 1px solid #eee; margin-bottom: 5px;
         }
-        /* 그리드 내 줄 표시기 너비 자동 조절 */
         .normal-span { grid-column: 1 / span 8; }
         .exam-span { grid-column: 1 / span 9; }
         #status { font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
@@ -70,12 +86,13 @@
 </head>
 <body>
 
-    <h1>🏫 맞춤형 자리 배치 프로그램</h1>
+    <h1>🏫 학급 자리 배치 프로그램</h1>
 
     <div id="controls">
-        <button id="input-mode-button" onclick="toggleInputMode()">⚙️ 배치 설정</button>
+        <button id="input-mode-button" onclick="toggleInputMode()">⚙️ 설정</button>
         <button id="random-button" onclick="shuffleAllSeats()" disabled>🎲 랜덤 섞기</button>
-        <button id="swap-button" onclick="toggleSwapMode()" disabled>🔄 자리 교환</button>
+        <button id="swap-button" onclick="toggleSwapMode()" disabled>🔄 교환</button>
+        <button id="complete-button" onclick="finishSelection()" disabled>✅ 완료(투명통로)</button>
         <button id="reset-button" onclick="location.reload()">↺ 초기화</button>
     </div>
 
@@ -83,19 +100,33 @@
         <label><b>1. 배치 유형 선택</b></label>
         <div>
             <label><input type="radio" name="layout" value="normal" checked> 일반형 </label>
-            <label><input type="radio" name="layout" value="exam"> 모의 고사형 </label>
+            <label><input type="radio" name="layout" value="exam"> 모의고사형 </label>
         </div>
-        <label for="total-end-number"><b>2. 학생 마지막 번호</b></label>
+        <hr>
+        <label for="total-end-number"><b>2. 마지막 번호</b></label>
         <input type="number" id="total-end-number" value="31" min="1">
-        <label for="exclude-numbers"><b>3. 제외할 번호</b></label>
+        <label for="exclude-numbers"><b>3. 제외 번호</b></label>
         <input type="text" id="exclude-numbers" placeholder="예: 5, 12">
-        <button onclick="applySettings()" style="background-color: #27ae60;">적용하기</button>
+        <button onclick="applySettings()" style="background-color: #27ae60; margin-top:10px;">적용하기</button>
     </div>
 
     <div id="status">설정을 완료해주세요.</div>
+
+    <div id="teacher-desk" style="display: none;">교 탁</div>
+
     <div id="seating-chart"></div>
 
     <script>
+        const studentNames = {
+            1: "구본산", 2: "권사철", 3: "권현우", 4: "김도훈", 5: "김민성",
+            6: "김민재", 7: "김민철", 8: "김용준", 9: "김윤호", 10: "김재우",
+            11: "김지구", 12: "민도원", 13: "박상현", 14: "안성용", 15: "안현준",
+            16: "유연규", 17: "유하준(17)", 18: "유하준(18)", 19: "이대겸",
+            20: "이재성", 21: "이주민", 22: "이지환", 23: "이현", 24: "이효성",
+            25: "임윤재", 26: "지서준", 27: "최동민", 28: "최솔함", 29: "최원준",
+            30: "최정빈", 31: "한효범"
+        };
+
         let allSeatNumbers = [];
         let seatingMap = [];
         let isSwapMode = false;
@@ -118,46 +149,39 @@
                 if (!excludes.includes(i)) allSeatNumbers.push(i);
             }
 
-            const maxCap = currentLayout === 'exam' ? 35 : 36; 
-            if (allSeatNumbers.length > maxCap) {
-                alert(`최대 수용 인원을 초과했습니다. (최대 ${maxCap}명)`);
-                return;
-            }
-
             buildMap(allSeatNumbers);
             const chart = document.getElementById('seating-chart');
+            const desk = document.getElementById('teacher-desk');
             chart.style.visibility = 'visible';
+            desk.style.display = 'flex'; // 교탁 보이기
             chart.className = currentLayout === 'exam' ? 'grid-exam' : 'grid-normal';
+            chart.classList.remove('finished');
             
             document.getElementById('random-button').disabled = false;
             document.getElementById('swap-button').disabled = false;
-            document.getElementById('status').textContent = `✅ ${currentLayout === 'normal' ? '일반형' : '모의고사형'} 배치 완료`;
+            document.getElementById('complete-button').disabled = false;
+            document.getElementById('status').textContent = `✅ 배치가 준비되었습니다.`;
             toggleInputMode();
         }
 
         function buildMap(numbers) {
-            // 일반형은 요청하신 대로 8열, 모의고사형은 지그재그를 위해 9열 사용
             const COLS = currentLayout === 'exam' ? 9 : 8;
+            // 자리를 한 칸 뒤로 밀기 위해 행을 하나 더 여유있게 생성
             let ROWS = (currentLayout === 'exam' && numbers.length > 30) ? 7 : 6;
-
             seatingMap = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
 
-            // 1단계: 통로 설정
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     if (currentLayout === 'exam') {
                         if ([1, 3, 5, 7].includes(c)) seatingMap[r][c] = 'EMPTY';
                     } else {
-                        // 일반형: 2열과 5열만 통로 (8번 열은 아예 생성 안 함)
                         if ([2, 5].includes(c)) seatingMap[r][c] = 'EMPTY';
                     }
                 }
             }
 
-            // 2단계: 번호 부여
             let numIdx = 0;
             if (currentLayout === 'exam') {
-                // [모의고사형] 1~30번 세로 우선 / 31번부터 7행 우측->좌측
                 for (let c = 0; c < COLS; c++) {
                     for (let r = 0; r < 6; r++) {
                         if (seatingMap[r][c] !== 'EMPTY' && numIdx < numbers.length && numIdx < 30) {
@@ -173,7 +197,6 @@
                     }
                 }
             } else {
-                // [일반형] 가로 우선 (8열 구조)
                 for (let r = 0; r < ROWS; r++) {
                     for (let c = 0; c < COLS; c++) {
                         if (seatingMap[r][c] !== 'EMPTY' && numIdx < numbers.length) {
@@ -193,7 +216,7 @@
             seatingMap.forEach((row, r) => {
                 const indicator = document.createElement('div');
                 indicator.className = `row-indicator ${spanClass}`;
-                indicator.textContent = `─── ${r + 1}번 라인 ───`;
+                indicator.textContent = `─── ${r + 1}분단 라인 ───`;
                 chart.appendChild(indicator);
                 row.forEach((cell, c) => {
                     const div = document.createElement('div');
@@ -205,7 +228,7 @@
                         div.classList.add('empty');
                         div.textContent = '';
                     } else {
-                        div.textContent = cell;
+                        div.textContent = studentNames[cell] || cell;
                         div.dataset.row = r; div.dataset.col = c;
                         div.onclick = handleSeatClick;
                     }
@@ -233,6 +256,8 @@
 
         function shuffleAllSeats() {
             const btn = document.getElementById('random-button');
+            const chart = document.getElementById('seating-chart');
+            chart.classList.remove('finished');
             btn.disabled = true;
             document.querySelectorAll('.seat:not(.empty)').forEach(s => {
                 s.classList.add('shuffling'); s.textContent = '?';
@@ -246,11 +271,23 @@
 
         function toggleSwapMode() {
             isSwapMode = !isSwapMode;
+            document.getElementById('seating-chart').classList.remove('finished');
             firstSelected = null;
             const btn = document.getElementById('swap-button');
             btn.style.backgroundColor = isSwapMode ? '#f39c12' : '#2980b9';
             btn.textContent = isSwapMode ? '🚫 취소' : '🔄 교환';
             document.querySelectorAll('.seat').forEach(s => s.classList.remove('selected-swap'));
+        }
+
+        function finishSelection() {
+            const chart = document.getElementById('seating-chart');
+            const isNowFinished = chart.classList.toggle('finished');
+            if (isNowFinished) {
+                document.getElementById('status').textContent = "📌 최종 배치도 확정";
+                isSwapMode = false;
+            } else {
+                document.getElementById('status').textContent = "🛠 수정 모드";
+            }
         }
     </script>
 </body>
